@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Phishing and Vulnerability Scan</title>
+</head>
+<body>
+    <h2>Enter Target Website URL</h2>
+    <form id="scanForm">
+        <input type="text" id="target_url" placeholder="https://example.com" required>
+        <button type="submit">Run Scan</button>
+    </form>
+    <pre id="result"></pre>
+
+    <script>
+        document.getElementById('scanForm').onsubmit = async e => {
+            e.preventDefault();
+            document.getElementById('result').textContent = "Running scan, please wait...";
+            const url = document.getElementById('target_url').value;
+            const response = await fetch('/scan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `target_url=${encodeURIComponent(url)}`
+            });
+            const data = await response.json();
+            if (response.ok) {
+                document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+            } else {
+                document.getElementById('result').textContent = "Error: " + data.error;
+            }
+        };
+    </script>
+</body>
+</html>
