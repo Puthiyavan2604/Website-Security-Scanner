@@ -1,33 +1,479 @@
 <!DOCTYPE html>
-<html>
-<head>
-    <title>Phishing and Vulnerability Scan</title>
-</head>
-<body>
-    <h2>Enter Target Website URL</h2>
-    <form id="scanForm">
-        <input type="text" id="target_url" placeholder="https://example.com" required>
-        <button type="submit">Run Scan</button>
-    </form>
-    <pre id="result"></pre>
+<html lang="en">
 
-    <script>
-        document.getElementById('scanForm').onsubmit = async e => {
-            e.preventDefault();
-            document.getElementById('result').textContent = "Running scan, please wait...";
-            const url = document.getElementById('target_url').value;
-            const response = await fetch('/scan', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `target_url=${encodeURIComponent(url)}`
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Website Security Scanner</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='app.css') }}"
+    >
+
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>Website Security Scanner</h1>
+
+    <p class="description">
+        Analyze a website using multiple security and
+        reconnaissance tools.
+    </p>
+
+    <div class="input-section">
+
+        <input
+            type="text"
+            id="urlInput"
+            placeholder="https://example.com"
+        >
+
+        <button
+            id="scanButton"
+            onclick="startScan()"
+        >
+            Scan Website
+        </button>
+
+    </div>
+
+    <p id="message"></p>
+
+    <div
+        id="scoreSection"
+        class="hidden"
+    >
+
+        <h2>Security Score</h2>
+
+        <div class="score-box">
+
+            <div
+                id="score"
+                class="score"
+            >
+                -
+            </div>
+
+            <div
+                id="grade"
+                class="grade"
+            >
+                -
+            </div>
+
+        </div>
+
+    </div>
+
+    <div
+        id="findingsSection"
+        class="hidden"
+    >
+
+        <h2>Security Findings</h2>
+
+        <div id="findingsContainer"></div>
+
+    </div>
+
+    <div
+        id="suggestionsSection"
+        class="hidden"
+    >
+
+        <h2>Security Recommendations</h2>
+
+        <ul id="suggestionsContainer"></ul>
+
+    </div>
+
+    <div
+        id="resultsSection"
+        class="hidden"
+    >
+
+        <h2>Raw Tool Output</h2>
+
+        <div id="resultsContainer"></div>
+
+    </div>
+
+</div>
+
+<script>
+
+async function startScan() {
+
+    const urlInput =
+        document.getElementById("urlInput");
+
+    const scanButton =
+        document.getElementById("scanButton");
+
+    const message =
+        document.getElementById("message");
+
+    const url =
+        urlInput.value.trim();
+
+    if (!url) {
+
+        message.textContent =
+            "Please enter a website URL.";
+
+        return;
+    }
+
+    document
+        .getElementById("scoreSection")
+        .classList.add("hidden");
+
+    document
+        .getElementById("findingsSection")
+        .classList.add("hidden");
+
+    document
+        .getElementById("suggestionsSection")
+        .classList.add("hidden");
+
+    document
+        .getElementById("resultsSection")
+        .classList.add("hidden");
+
+    message.textContent =
+        "Scanning website. Please wait...";
+
+    scanButton.disabled = true;
+
+    scanButton.textContent =
+        "Scanning...";
+
+    try {
+
+        const response =
+            await fetch("/scan", {
+
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+
+                body: JSON.stringify({
+                    url: url
+                })
             });
-            const data = await response.json();
-            if (response.ok) {
-                document.getElementById('result').textContent = JSON.stringify(data, null, 2);
-            } else {
-                document.getElementById('result').textContent = "Error: " + data.error;
-            }
-        };
-    </script>
+
+        const data =
+            await response.json();
+
+        if (!data.success) {
+
+            message.textContent =
+                data.error ||
+                "Scan failed.";
+
+            return;
+        }
+
+        message.textContent =
+            "Scan completed successfully.";
+
+        displayScore(data);
+
+        displayFindings(
+            data.findings
+        );
+
+        displaySuggestions(
+            data.suggestions
+        );
+
+        displayToolResults(
+            data.results
+        );
+
+    } catch (error) {
+
+        message.textContent =
+            "Unable to connect to the scanner.";
+
+        console.error(error);
+
+    } finally {
+
+        scanButton.disabled = false;
+
+        scanButton.textContent =
+            "Scan Website";
+    }
+}
+
+
+function displayScore(data) {
+
+    document
+        .getElementById("scoreSection")
+        .classList.remove("hidden");
+
+    document
+        .getElementById("score")
+        .textContent =
+            data.score;
+
+    document
+        .getElementById("grade")
+        .textContent =
+            "Grade: " + data.grade;
+}
+
+
+function displayFindings(findings) {
+
+    const section =
+        document.getElementById(
+            "findingsSection"
+        );
+
+    const container =
+        document.getElementById(
+            "findingsContainer"
+        );
+
+    section.classList.remove(
+        "hidden"
+    );
+
+    container.innerHTML = "";
+
+    if (!findings ||
+        findings.length === 0) {
+
+        container.innerHTML =
+            "<p>No security findings were identified.</p>";
+
+        return;
+    }
+
+    findings.forEach(
+        function(finding) {
+
+            const card =
+                document.createElement(
+                    "div"
+                );
+
+            card.className =
+                "finding-card";
+
+            card.innerHTML = `
+
+                <h3>
+                    ${escapeHtml(
+                        finding.title
+                    )}
+                </h3>
+
+                <p>
+                    <strong>Tool:</strong>
+                    ${escapeHtml(
+                        finding.tool
+                    )}
+                </p>
+
+                <p>
+                    <strong>Severity:</strong>
+                    ${escapeHtml(
+                        finding.severity
+                    )}
+                </p>
+
+                <p>
+                    <strong>Confidence:</strong>
+                    ${Math.round(
+                        finding.confidence * 100
+                    )}%
+                </p>
+
+                <p>
+                    <strong>Base Penalty:</strong>
+                    ${finding.base_penalty}
+                </p>
+
+                <p>
+                    <strong>Effective Penalty:</strong>
+                    ${finding.effective_penalty}
+                </p>
+
+                <p>
+                    <strong>Reason:</strong>
+                    ${escapeHtml(
+                        finding.reason
+                    )}
+                </p>
+
+                <p>
+                    <strong>Supporting Tools:</strong>
+                    ${escapeHtml(
+                        finding.supporting_tools.join(", ")
+                    )}
+                </p>
+
+            `;
+
+            container.appendChild(
+                card
+            );
+
+        }
+    );
+}
+
+
+function displaySuggestions(
+    suggestions
+) {
+
+    const section =
+        document.getElementById(
+            "suggestionsSection"
+        );
+
+    const container =
+        document.getElementById(
+            "suggestionsContainer"
+        );
+
+    section.classList.remove(
+        "hidden"
+    );
+
+    container.innerHTML = "";
+
+    suggestions.forEach(
+        function(suggestion) {
+
+            const item =
+                document.createElement(
+                    "li"
+                );
+
+            item.textContent =
+                suggestion;
+
+            container.appendChild(
+                item
+            );
+
+        }
+    );
+}
+
+
+function displayToolResults(
+    results
+) {
+
+    const section =
+        document.getElementById(
+            "resultsSection"
+        );
+
+    const container =
+        document.getElementById(
+            "resultsContainer"
+        );
+
+    section.classList.remove(
+        "hidden"
+    );
+
+    container.innerHTML = "";
+
+    Object.entries(results).forEach(
+        function([tool, result]) {
+
+            const box =
+                document.createElement(
+                    "div"
+                );
+
+            box.className =
+                "tool-result";
+
+            box.innerHTML = `
+
+                <h3>
+                    ${escapeHtml(tool)}
+                </h3>
+
+                <p>
+                    <strong>Status:</strong>
+                    ${escapeHtml(
+                        result.status
+                    )}
+                </p>
+
+                <p>
+                    <strong>Return Code:</strong>
+                    ${result.return_code}
+                </p>
+
+                <pre>${escapeHtml(
+                    result.output ||
+                    "No output."
+                )}</pre>
+
+            `;
+
+            container.appendChild(
+                box
+            );
+
+        }
+    );
+}
+
+
+function escapeHtml(value) {
+
+    return String(value)
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+        .replace(
+            /</g,
+            "&lt;"
+        )
+        .replace(
+            />/g,
+            "&gt;"
+        )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /'/g,
+            "&#039;"
+        );
+}
+
+</script>
+
 </body>
+
 </html>
